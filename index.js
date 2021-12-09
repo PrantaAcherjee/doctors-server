@@ -4,7 +4,17 @@ const app=express();
 const port=process.env.PORT||5000;
 const cors=require('cors');
 require('dotenv').config();
+const admin = require("firebase-admin");
 const ObjectId=require('mongodb').ObjectId;
+
+
+
+const serviceAccount =require('./doctors-firebase-adminsdk.json');
+
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
 // middle ware 
 app.use(cors())
@@ -14,6 +24,13 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rrj86.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 // console.log(uri);
+
+async function verifyToken(req,res,next){
+    if(req?.headers?.authorization.startsWith('Bearer ')){
+        const token=req.headers.authorization.split(' ')[1];
+    }
+    next();
+}
 
 async function run (){
 try{
@@ -50,7 +67,7 @@ app.put('/users',async(req,res)=>{
 })
 
 // make an admin 
-app.put('/users/admin',async(req,res)=>{
+app.put('/users/admin',verifyToken,async(req,res)=>{
     const user=req.body;
     // console.log('put',user);
     const filter={email:user.email};
