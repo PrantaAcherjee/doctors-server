@@ -6,16 +6,11 @@ const cors=require('cors');
 require('dotenv').config();
 const admin = require("firebase-admin");
 const ObjectId=require('mongodb').ObjectId;
-
-
-
+const stripe= require('stripe')(process.env.STRIPE_SECRET)
 const serviceAccount =require('./doctors-firebase-adminsdk.json');
-
-
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-
 // middle ware 
 app.use(cors())
 app.use(express.json());
@@ -58,6 +53,14 @@ const result=await appointmentsCollection.insertOne(appointment);
 // res.send(result); or
 res.json(result)
 });
+
+// get payment id
+app.get('/appointments/:id',async(req,res)=>{
+    const id=req.params.id;
+    const query={_id:ObjectId(id)};
+    const result=await appointmentsCollection.findOne(query);
+    res.json(result);
+})
 
 // users Post api 
 app.post('/users',async(req,res)=>{
@@ -117,6 +120,31 @@ app.get('/appointments',verifyToken,async(req,res)=>{
     res.json(appointments);
 });
 
+// stripe payment
+ app.post('/create-payment-intent',async(req,res) => {
+    const paymentInfo = req.body;
+    const amount = paymentInfo.price * 100;
+    const paymentIntent = await stripe.paymentIntents.create({
+        currency: 'usd',
+        amount: amount,
+        payment_method_types: ['card']
+    });
+      res.json({clientSecret: paymentIntent.client_secret})
+    })
+
+// update payment info 
+ app.put('/appointments/:id', async (req, res) => {
+    const id = req.params.id;
+    const payment = req.body;
+    const filter = { _id: ObjectId(id)};
+    const updateDoc = {
+        $set: {
+           payment: payment
+        }
+       };
+          const result = await appointmentsCollection.updateOne(filter, updateDoc);
+    res.json(result);
+ })
 
 }
 finally{
